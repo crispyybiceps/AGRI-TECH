@@ -1,0 +1,116 @@
+{
+  "notice": "Sample directory of accredited agricultural testing labs & KVKs in Maharashtra.",
+  "collection_steps": [
+    {
+      "step": 1,
+      "title_en": "Choose Sampling Points",
+      "title_hi": "नमूना बिंदु चुनें",
+      "title_mr": "जागेची निवड",
+      "desc_en": "Walk in a zigzag pattern across the field. Collect 10-15 sub-samples per acre. Avoid bunds, shade trees, compost heaps, and water channels.",
+      "desc_hi": "खेत में ज़िग-ज़ैग तरीके से चलें। प्रति एकड़ 10-15 जगहों से मिट्टी लें। मेड़ और पेड़ों के नीचे से बचें।",
+      "desc_mr": "शेतात नागमोडी (झिग-झॅग) पद्धतीने फिरा. एका एकरातून १०-१५ ठिकाणाहून माती गोळा करा. झाडाखाली किंवा शेताच्या बांधावरून माती घेऊ नका."
+    },
+    {
+      "step": 2,
+      "title_en": "Dig 'V' Shaped Cut",
+      "title_hi": "'V' आकार का गड्ढा",
+      "title_mr": "'V' आकाराचा खड्डा",
+      "desc_en": "Remove weeds/trash from surface. Dig a 'V' shaped hole to a depth of 15 cm (plough layer) for field crops.",
+      "desc_hi": "ऊपरी घास हटाएं। फावड़े से 15 सेमी गहरा 'V' आकार का गड्ढा बनाएं।",
+      "desc_mr": "वरचा काडीकचरा बाजूला करा. कुदळ किंवा खुरप्याने १५ सेमी (६ इंच) खोल 'V' आकाराचा खड्डा करा."
+    },
+    {
+      "step": 3,
+      "title_en": "Slice a 2 cm Layer",
+      "title_hi": "2 सेमी परत निकालें",
+      "title_mr": "२ सेमी जाडीचा थर",
+      "desc_en": "Take a 2 to 3 cm thick slice of soil from the vertical edge of the 'V' pit from top to bottom.",
+      "desc_hi": "गड्ढे की दीवार से ऊपर से नीचे तक 2 सेमी मोटी मिट्टी की परत काटें।",
+      "desc_mr": "खड्ड्याच्या कडेने वरपासून खालपर्यंत २ सेमी जाडीचा मातीचा थर तासून घ्या."
+    },
+    {
+      "step": 4,
+      "title_en": "Mix and Quarter",
+      "title_hi": "मिलाएं और चौथाई करें",
+      "title_mr": "चार भाग पद्धत",
+      "desc_en": "Mix all sub-samples thoroughly in a clean bucket. Spread in a circle on clean paper, divide into 4 quarters, discard opposite quarters, repeat until 500 grams remain.",
+      "desc_hi": "सभी नमूनों को अच्छी तरह मिलाएं। चार बराबर भागों में बांटकर आधा किलो बचाएं।",
+      "desc_mr": "सर्व माती स्वच्छ घमेल्यात एकत्र मिसळा. स्वच्छ कापडावर गोलाकार पसरवून ४ भाग करा. समोरासमोरील २ भाग फेकून द्या, अर्धा किलो उरेपर्यंत ही प्रक्रिया करा."
+    },
+    {
+      "step": 5,
+      "title_en": "Dry and Pack",
+      "title_hi": "सुखाएं और लेबल लगाएं",
+      "title_mr": "सावलीत वाळवून पॅक करा",
+      "desc_en": "Dry in shade (never direct sun or oven). Pack in a clean cloth or polythene bag with farmer name, village, survey number, and intended crop.",
+      "desc_hi": "छांव में सुखाएं। थैली में नाम, गांव, सर्वे नंबर और फसल लिखकर प्रयोगशाला भेजें।",
+      "desc_mr": "माती सावलीत वाळवा (उन्हात नाही). कापडी पिशवीत भरून त्यावर नाव, गाव, गट नंबर व पुढील पीक लिहून लॅबमध्ये जमा करा."
+    }
+  ],
+  "labs": [
+    {
+      "district": "Pune",
+      "district_mr": "पुणे",
+      "name": "KVK Baramati Soil Testing Laboratory",
+      "name_mr": "कृषी विज्ञान केंद्र (केव्हीके) बारामती माती परीक्षण प्रयोगशाळा",
+      "location": "Agricultural Development Trust, Shardanagar, Baramati",
+      "contact": "02112-255207",
+      "type": "ICAR-KVK"
+    },
+    {
+      "district": "Pune",
+      "district_mr": "पुणे",
+      "name": "State Soil Testing Laboratory, Shivajinagar",
+      "name_mr": "शासकीय माती परीक्षण प्रयोगशाळा, शिवाजीनगर, पुणे",
+      "location": "College of Agriculture Campus, Pune",
+      "contact": "020-25537033",
+      "type": "Govt Lab"
+    },
+    {
+      "district": "Nashik",
+      "district_mr": "नाशिक",
+      "name": "KVK Yashwantrao Chavan Maharashtra Open University",
+      "name_mr": "केव्हीके यशवंतराव चव्हाण महाराष्ट्र मुक्त विद्यापीठ",
+      "location": "Dnyangangotri Campus, Gangapur Road, Nashik",
+      "contact": "0253-2231714",
+      "type": "ICAR-KVK"
+    },
+    {
+      "district": "Ahmednagar",
+      "district_mr": "अहमदनगर",
+      "name": "KVK Babhaleshwar / Rahata",
+      "name_mr": "कृषी विज्ञान केंद्र बाभळेश्वर (राहाता)",
+      "location": "Pirens Campus, Babhaleshwar, Tal. Rahata",
+      "contact": "02422-252414",
+      "type": "ICAR-KVK"
+    },
+    {
+      "district": "Chhatrapati Sambhaji Nagar (Aurangabad)",
+      "district_mr": "छत्रपती संभाजीनगर (औरंगाबाद)",
+      "name": "Vasantrao Naik Marathwada Krishi Vidyapeeth Lab",
+      "name_mr": "वसंतराव नाईक मराठवाडा कृषी विद्यापीठ माती चाचणी केंद्र",
+      "location": "Himayat Bagh Campus, Chhatrapati Sambhaji Nagar",
+      "contact": "0240-2376558",
+      "type": "University Lab"
+    },
+    {
+      "district": "Nagpur",
+      "district_mr": "नागपूर",
+      "name": "ICAR-CICR Central Institute for Cotton Research Lab",
+      "name_mr": "केंद्रीय कापूस संशोधन संस्था (सीआयसीआर) माती प्रयोगशाळा",
+      "location": "Wardha Road, Panjri, Nagpur",
+      "contact": "07103-275536",
+      "type": "ICAR Institute"
+    },
+    {
+      "district": "Kolhapur",
+      "district_mr": "कोल्हापूर",
+      "name": "Sheti Farm Vikas Soil Testing Laboratory",
+      "name_mr": "शासकीय माती व पाणी परीक्षण केंद्र, कसबा बावडा",
+      "location": "Kasba Bawada, Kolhapur",
+      "contact": "0231-2601147",
+      "type": "Govt Lab"
+    }
+  ]
+}
+

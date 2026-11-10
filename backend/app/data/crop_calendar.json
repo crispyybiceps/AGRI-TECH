@@ -1,0 +1,118 @@
+{
+  "notice": "General guidance only. Local soil conditions, water availability, and seed varieties may vary.",
+  "seasons": {
+    "kharif": {
+      "name_en": "Kharif (Monsoon / June - October)",
+      "name_hi": "खरीफ (मानसून / जून - अक्टूबर)",
+      "name_mr": "खरीप (पावसाळा / जून - ऑक्टोबर)",
+      "months": [6, 7, 8, 9, 10],
+      "crops": [
+        {
+          "name_en": "Soybean",
+          "name_hi": "सोयाबीन",
+          "name_mr": "सोयाबीन",
+          "recommended_varieties": "JS-335, JS-9305, Phule Kalyani (DS-228)",
+          "water_requirement": "Medium",
+          "sowing_condition": "Requires at least 75-100 mm rainfall before sowing."
+        },
+        {
+          "name_en": "Cotton (Bt)",
+          "name_hi": "कपास",
+          "name_mr": "कापूस",
+          "recommended_varieties": "Bollgard II hybrids (Ajit-155, Mallika)",
+          "water_requirement": "Medium to High",
+          "sowing_condition": "Deep black soil with good drainage after monsoon onset."
+        },
+        {
+          "name_en": "Pigeon Pea (Tur)",
+          "name_hi": "अरहर (तूर)",
+          "name_mr": "तूर",
+          "recommended_varieties": "BDN-711, BSMR-736, Vipula",
+          "water_requirement": "Low to Medium",
+          "sowing_condition": "Suitable for intercropping with soybean/cotton."
+        },
+        {
+          "name_en": "Paddy / Rice",
+          "name_hi": "धान / चावल",
+          "name_mr": "भात",
+          "recommended_varieties": "Indrayani, Karjat-3, Phule Samruddhi",
+          "water_requirement": "High",
+          "sowing_condition": "Best suited for Konkan and high rainfall zones."
+        }
+      ]
+    },
+    "rabi": {
+      "name_en": "Rabi (Winter / October - March)",
+      "name_hi": "रबी (सर्दियों / अक्टूबर - मार्च)",
+      "name_mr": "रब्बी (हिवाळा / ऑक्टोबर - मार्च)",
+      "months": [10, 11, 12, 1, 2, 3],
+      "crops": [
+        {
+          "name_en": "Gram / Chickpea (Chana)",
+          "name_hi": "चना",
+          "name_mr": "हरभरा (चना)",
+          "recommended_varieties": "Vijay, Digvijay, Vishal, JAKI-9218",
+          "water_requirement": "Low to Medium",
+          "sowing_condition": "Sow in residual soil moisture after Kharif harvest."
+        },
+        {
+          "name_en": "Wheat",
+          "name_hi": "गेहूं",
+          "name_mr": "गहू",
+          "recommended_varieties": "Trimbak, Godawari, Lok-1, Phule Samadhan",
+          "water_requirement": "Medium to High (irrigated)",
+          "sowing_condition": "Sow when night temperatures drop below 20°C (Nov 1-15)."
+        },
+        {
+          "name_en": "Rabi Sorghum (Jowar)",
+          "name_hi": "ज्वार",
+          "name_mr": "रब्बी ज्वारी",
+          "recommended_varieties": "Maldandi (M 35-1), Phule Suchitra, Phule Yashodha",
+          "water_requirement": "Low (drought tolerant)",
+          "sowing_condition": "Sow in September-October in deep black soils."
+        },
+        {
+          "name_en": "Rabi Onion",
+          "name_hi": "रबी प्याज",
+          "name_mr": "रब्बी कांदा",
+          "recommended_varieties": "N-2-4-1, Bhima Kiran, Bhima Shakti",
+          "water_requirement": "Medium",
+          "sowing_condition": "Transplant 6-7 week old seedlings in Dec-Jan."
+        }
+      ]
+    },
+    "zaid": {
+      "name_en": "Zaid (Summer / March - June)",
+      "name_hi": "जायद (गर्मी / मार्च - जून)",
+      "name_mr": "उन्हाळी / बागायत (मार्च - जून)",
+      "months": [3, 4, 5],
+      "crops": [
+        {
+          "name_en": "Summer Groundnut",
+          "name_hi": "मूंगफली",
+          "name_mr": "उन्हाळी भुईमूग",
+          "recommended_varieties": "TAG-24, TG-26, Phule Unnati",
+          "water_requirement": "Medium (requires guaranteed irrigation)",
+          "sowing_condition": "Sow from 15 Jan to 15 Feb with assured watering."
+        },
+        {
+          "name_en": "Green Gram (Moong)",
+          "name_hi": "मूंग",
+          "name_mr": "उन्हाळी मूग",
+          "recommended_varieties": "BM-2002-1, BM-2003-2, Vaibhav",
+          "water_requirement": "Low to Medium",
+          "sowing_condition": "Quick 60-day crop following potato/onion harvest."
+        },
+        {
+          "name_en": "Vegetables & Melons",
+          "name_hi": "सब्जियां और तरबूज",
+          "name_mr": "भाजीपाला व टरबूज",
+          "recommended_varieties": "Okra (Phule Utkarsha), Watermelon (Sugar Baby)",
+          "water_requirement": "High frequency drip",
+          "sowing_condition": "Use mulch paper to conserve soil moisture."
+        }
+      ]
+    }
+  }
+}
+

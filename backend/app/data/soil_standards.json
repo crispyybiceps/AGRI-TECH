@@ -1,0 +1,80 @@
+{
+  "parameters": {
+    "ph": {
+      "name": "Soil Reaction (pH)",
+      "unit": "",
+      "ranges": [
+        {"max": 6.5, "status": "Acidic", "status_hi": "अम्लीय", "status_mr": "आम्लधर्मी", "color": "orange"},
+        {"min": 6.5, "max": 7.5, "status": "Neutral (Optimal)", "status_hi": "तटस्थ (उत्तम)", "status_mr": "उदासीन (उत्कृष्ट)", "color": "green"},
+        {"min": 7.5, "max": 8.5, "status": "Moderately Alkaline", "status_hi": "मध्यम क्षारीय", "status_mr": "मध्यम विम्लधर्मी", "color": "blue"},
+        {"min": 8.5, "status": "Sodic / Highly Alkaline", "status_hi": "अत्यधिक क्षारीय (सोडिक)", "status_mr": "चोपडी / क्षारयुक्त जमीन", "color": "red"}
+      ]
+    },
+    "ec": {
+      "name": "Electrical Conductivity (EC)",
+      "unit": "dS/m",
+      "ranges": [
+        {"max": 1.0, "status": "Normal", "status_hi": "सामान्य", "status_mr": "सामान्य (बिनधोका)", "color": "green"},
+        {"min": 1.0, "max": 2.0, "status": "Critical", "status_hi": "संवेदनशील", "status_mr": "धोकादायक", "color": "yellow"},
+        {"min": 2.0, "status": "Harmful (Saline)", "status_hi": "हानिकारक (लवणीय)", "status_mr": "अतिखारवट जमीन", "color": "red"}
+      ]
+    },
+    "oc": {
+      "name": "Organic Carbon (OC)",
+      "unit": "%",
+      "ranges": [
+        {"max": 0.50, "status": "Low", "status_hi": "कम", "status_mr": "कमी", "color": "red"},
+        {"min": 0.50, "max": 0.75, "status": "Medium", "status_hi": "मध्यम", "status_mr": "मध्यम", "color": "yellow"},
+        {"min": 0.75, "status": "High (Fertile)", "status_hi": "उच्च (उपजाऊ)", "status_mr": "उत्तम (सुपीक)", "color": "green"}
+      ]
+    },
+    "n": {
+      "name": "Available Nitrogen (N)",
+      "unit": "kg/ha",
+      "ranges": [
+        {"max": 280, "status": "Low", "status_hi": "कम", "status_mr": "कमी", "color": "red"},
+        {"min": 280, "max": 560, "status": "Medium", "status_hi": "मध्यम", "status_mr": "मध्यम", "color": "yellow"},
+        {"min": 560, "status": "High", "status_hi": "अधिक", "status_mr": "जास्त", "color": "green"}
+      ]
+    },
+    "p": {
+      "name": "Available Phosphorus (P)",
+      "unit": "kg/ha",
+      "ranges": [
+        {"max": 14, "status": "Low", "status_hi": "कम", "status_mr": "कमी", "color": "red"},
+        {"min": 14, "max": 28, "status": "Medium", "status_hi": "मध्यम", "status_mr": "मध्यम", "color": "yellow"},
+        {"min": 28, "status": "High", "status_hi": "अधिक", "status_mr": "जास्त", "color": "green"}
+      ]
+    },
+    "k": {
+      "name": "Available Potassium (K)",
+      "unit": "kg/ha",
+      "ranges": [
+        {"max": 140, "status": "Low", "status_hi": "कम", "status_mr": "कमी", "color": "red"},
+        {"min": 140, "max": 280, "status": "Medium", "status_hi": "मध्यम", "status_mr": "मध्यम", "color": "yellow"},
+        {"min": 280, "status": "High", "status_hi": "अधिक", "status_mr": "जास्त", "color": "green"}
+      ]
+    }
+  },
+  "amendments": {
+    "acidic": {
+      "condition": "pH < 6.5",
+      "advice_en": "Apply agricultural lime (calcium carbonate) or dolomite at 200-400 kg/acre to neutralize acidity and improve nutrient uptake.",
+      "advice_hi": "मिट्टी की अम्लता दूर करने के लिए प्रति एकड़ 200-400 किलोग्राम कृषि चूना (लाइम) डालें।",
+      "advice_mr": "जमिनीचा आम्लधर्मीपणा कमी करण्यासाठी एकरी २०० ते ४०० किलो कृषी चुना किंवा डोलोमाइट वापरा."
+    },
+    "sodic": {
+      "condition": "pH > 8.5",
+      "advice_en": "Apply agricultural gypsum (500-1000 kg/acre) followed by heavy irrigation and drainage to leach out excess sodium salts.",
+      "advice_hi": "अत्यधिक क्षारीयता कम करने के लिए प्रति एकड़ 500-1000 किलो जिप्सम डालें और खेत से पानी निकालने की नाली बनाएं।",
+      "advice_mr": "चोपडी व क्षारयुक्त जमीन सुधारण्यासाठी एकरी ५०० ते १००० किलो जिप्सम टाकून शेतात पाणी भरून निचरा करावा."
+    },
+    "low_organic_carbon": {
+      "condition": "Organic Carbon < 0.50%",
+      "advice_en": "Incorporate 4-5 tonnes of well-decomposed Farmyard Manure (FYM), vermicompost, or green manure (Dhaincha/Sunhemp) to rebuild soil humus.",
+      "advice_hi": "मिट्टी की जैविक शक्ति बढ़ाने के लिए प्रति एकड़ 4-5 टन गोबर की सड़ी खाद या केंचुआ खाद डालें।",
+      "advice_mr": "जमिनीतील सेंद्रिय कर्ब वाढवण्यासाठी एकरी ४-५ टन चांगले कुजलेले शेणखत, गांडूळ खत किंवा ताग/धैंचाचे हिरवळीचे खत गाडा."
+    }
+  }
+}
+
