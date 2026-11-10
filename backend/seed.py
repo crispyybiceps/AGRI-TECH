@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import engine, Base, SessionLocal
 from app.models import (
     User, Farm, SoilRecord, WeatherCache, ChatSession, ChatMessage,
-    MarketPrice, Listing, Offer
+    MarketPrice, Listing, Offer, TransportRequest, PaymentOrder,
+    SensorDevice, SensorReading, OTP
 )
 from app.services.mandi_service import DEFAULT_MAHARASHTRA_MANDIS
 from app.services.soil_service import interpret_soil_health_card, interpret_visual_observation
@@ -26,14 +27,19 @@ def seed_database():
     db = SessionLocal()
 
     try:
-        # 1. Clean existing records for fresh demo state
+        # 1. Clean existing records in foreign-key safe order
+        db.query(PaymentOrder).delete()
+        db.query(TransportRequest).delete()
         db.query(Offer).delete()
         db.query(Listing).delete()
         db.query(ChatMessage).delete()
         db.query(ChatSession).delete()
+        db.query(SensorReading).delete()
+        db.query(SensorDevice).delete()
         db.query(SoilRecord).delete()
         db.query(WeatherCache).delete()
         db.query(Farm).delete()
+        db.query(OTP).delete()
         db.query(User).delete()
         db.query(MarketPrice).delete()
         db.commit()

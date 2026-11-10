@@ -1,25 +1,30 @@
 """
 Database setup module for AGRI-TECH.
-Uses SQLAlchemy with SQLite for lightweight, file-based storage.
+Supports both Supabase PostgreSQL and SQLite.
+Removes SQLite-only settings when connecting to Postgres.
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import settings
 
-# Create SQLite engine
-# connect_args={"check_same_thread": False} is required for SQLite
-# to allow usage across multiple threads (FastAPI is async/threaded)
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
+db_url = settings.DATABASE_URL
 
-# Session factory — each request gets its own session
+# SQLite requires check_same_thread=False; Postgres pool settings are standard
+engine_kwargs = {}
+if db_url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # Postgres configuration (pool size, pre-ping for connection health)
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+
+engine = create_engine(db_url, **engine_kwargs)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for all SQLAlchemy models
+# Modern SQLAlchemy 2.0 declarative_base
 Base = declarative_base()
 
 

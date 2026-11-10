@@ -3,7 +3,7 @@ Farm router for AGRI-TECH.
 Full CRUD for farms, scoped to the currently authenticated user.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -120,7 +120,7 @@ def update_farm(
         farm.crops = request.crops
 
     # Touch the updated_at timestamp
-    farm.updated_at = datetime.utcnow()
+    farm.updated_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(farm)

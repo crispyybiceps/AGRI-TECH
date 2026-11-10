@@ -188,6 +188,8 @@ def test_agmarknet_sync_mocked():
 def test_transport_and_payment_flow(client):
     db = SessionLocal()
     user = db.query(User).first()
+    user.role = "transporter"
+    db.commit()
     from app.auth import create_access_token
     token = create_access_token(user_id=user.id, phone=user.phone)
     headers = {"Authorization": f"Bearer {token}"}
@@ -201,7 +203,7 @@ def test_transport_and_payment_flow(client):
     assert t_res.status_code == 201
     assert t_res.json()["status"] == "requested"
 
-    # 2. Accept transport
+    # 2. Accept transport (as transporter role)
     tid = t_res.json()["id"]
     accept_res = client.put(
         f"/marketplace/transport/{tid}/status",
@@ -225,7 +227,7 @@ def test_transport_and_payment_flow(client):
         json={"offer_id": offer.id}
     )
     assert pay_res.status_code == 201
-    assert "TEST MODE" in pay_res.json()["notice"]
+    assert "DEMO ORDER" in pay_res.json()["notice"] or "TEST MODE" in pay_res.json()["notice"]
     assert pay_res.json()["amount_inr"] == 24500.0
     db.close()
 

@@ -1,18 +1,14 @@
 """
 Soil Module Router for AGRI-TECH.
-Covers:
-- Tier 1: Soil Health Card entry & interpretation
-- Tier 2: ISRIC SoilGrids v2 REST API (30-day cache, rate limit backoff, ESTIMATE label)
-- Tier 3: Guided Visual Observations
-- Tier 4: IoT / ESP32 Sensor Hardware System (Device Registration, Ingestion with Hashed Key, Telemetry, Anomaly Detection)
-- Tier 5: Maharashtra Lab Directory & Sampling Guide
-- OCR Vision Engine: Real Claude Vision extraction with fallback to simulated mock
+Security Item 4: Sensor endpoint requires a valid device key (X-Device-Key),
+rejects unregistered devices with 401 Unauthorized, and validates value ranges.
 """
 
 import json
 import secrets
 import hashlib
-from datetime import datetime
+import hmac
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from pydantic import BaseModel, Field
@@ -72,10 +68,6 @@ def add_soil_health_card(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Tier 1 (High Confidence): Submit confirmed Soil Health Card lab results.
-    Never auto-saves unconfirmed numbers.
-    """
     farm = db.query(Farm).filter(Farm.id == farm_id).first()
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
@@ -92,7 +84,8 @@ def add_soil_health_card(
         source="Government Soil Health Card (Lab Certified)",
         confidence="High",
         values_json=json.dumps(validated),
-        interpretation_json=json.dumps(interpretation)
+        interpretation_json=json.dumps(interpretation),
+        created_at=datetime.now(timezone.utc)
     )
     db.add(record)
     db.commit()
@@ -115,10 +108,6 @@ def add_soil_health_card(
 @router.post("/ocr-card")
 @router.post("/ocr-stub")
 def ocr_soil_card(req: Optional[OCRVisionRequest] = None):
-    """
-    Item 3: Real Soil Card extraction via Claude Vision API when image is provided,
-    otherwise returns simulated mock data. Always returns values for farmer confirmation.
-    """
     if req and req.base64_image:
         return extract_soil_card_from_image_vision(req.base64_image, req.mime_type or "image/jpeg")
     return mock_ocr_extract_card()
@@ -133,10 +122,6 @@ def get_soilgrids_for_farm(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Tier 2: Real ISRIC SoilGrids v2 REST API (30-day SQLite cache, rate-limit backoff).
-    Prominently labeled as ESTIMATE, not a lab test.
-    """
     farm = db.query(Farm).filter(Farm.id == farm_id).first()
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
@@ -148,7 +133,6 @@ def get_soilgrids_for_farm(
 
     estimate = get_soilgrids_estimate(lat, lng, db=db)
 
-    # Cache as Tier 2 record if not present
     existing = db.query(SoilRecord).filter(SoilRecord.farm_id == farm.id, SoilRecord.tier == 2).first()
     if not existing:
         new_record = SoilRecord(
@@ -157,7 +141,8 @@ def get_soilgrids_for_farm(
             source=estimate.get("source", "ISRIC SoilGrids v2"),
             confidence="Medium",
             values_json=json.dumps({"lat": lat, "lng": lng}),
-            interpretation_json=json.dumps(estimate)
+            interpretation_json=json.dumps(estimate),
+            created_at=datetime.now(timezone.utc)
         )
         db.add(new_record)
         db.commit()
@@ -190,7 +175,8 @@ def add_visual_observation(
         source="Guided Visual Observation",
         confidence="Low",
         values_json=json.dumps(obs),
-        interpretation_json=json.dumps(interpretation)
+        interpretation_json=json.dumps(interpretation),
+        created_at=datetime.now(timezone.utc)
     )
     db.add(record)
     db.commit()
@@ -244,7 +230,6 @@ def get_farm_soil_insights(
             "created_at": r.created_at.isoformat()
         })
 
-    # Latest Tier 4 sensor telemetry
     latest_reading = (
         db.query(SensorReading)
         .filter(SensorReading.farm_id == farm_id)
@@ -280,7 +265,7 @@ def get_farm_soil_insights(
 
 
 # ──────────────────────────────────────────────
-# Item 5: Tier 4 IoT Sensor Hardware Router
+# Item 4 & 5: IoT Sensor Device Management & Strict Ingestion
 # ──────────────────────────────────────────────
 sensor_router = APIRouter(prefix="/sensors", tags=["IoT Sensors (Tier 4)"])
 
@@ -288,15 +273,15 @@ sensor_router = APIRouter(prefix="/sensors", tags=["IoT Sensors (Tier 4)"])
 class DeviceRegisterInput(BaseModel):
     farm_id: int
     device_name: str
-    device_identifier: str  # e.g., "ESP32_AGRI_NODE_01"
+    device_identifier: str
 
 
 class TelemetryInput(BaseModel):
     sensor_id: str
-    moisture: Optional[float] = Field(None, ge=0.0, le=100.0, description="Moisture %")
-    temperature: Optional[float] = Field(None, ge=-10.0, le=65.0, description="Soil temp °C")
-    conductivity: Optional[float] = Field(None, ge=0.0, le=25.0, description="Conductivity dS/m")
-    ph: Optional[float] = Field(None, ge=0.0, le=14.0, description="Soil pH")
+    moisture: Optional[float] = Field(None, ge=0.0, le=100.0, description="Moisture % (0-100)")
+    temperature: Optional[float] = Field(None, ge=-10.0, le=65.0, description="Soil temp °C (-10 to 65)")
+    conductivity: Optional[float] = Field(None, ge=0.0, le=25.0, description="Conductivity dS/m (0-25)")
+    ph: Optional[float] = Field(None, ge=0.0, le=14.0, description="Soil pH (0-14)")
 
 
 def hash_device_key(raw_key: str) -> str:
@@ -309,7 +294,6 @@ def register_sensor_device(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Registers an ESP32 hardware device for a farm and issues a secret device API key."""
     farm = db.query(Farm).filter(Farm.id == data.farm_id).first()
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
@@ -328,7 +312,8 @@ def register_sensor_device(
         device_name=data.device_name,
         device_identifier=data.device_identifier,
         hashed_api_key=hashed_key,
-        is_active=True
+        is_active=True,
+        created_at=datetime.now(timezone.utc)
     )
     db.add(device)
     db.commit()
@@ -373,24 +358,40 @@ def record_sensor_telemetry(
     db: Session = Depends(get_db),
 ):
     """
-    Tier 4: Ingests live hardware telemetry from ESP32.
-    Authenticates via X-Device-Key header against hashed key in DB.
-    Performs agricultural anomaly validation.
+    Security Item 4:
+    - Require a valid device key (X-Device-Key)
+    - Reject unregistered devices with 401 Unauthorized
+    - Validate value ranges (Pydantic schema ge/le constraints)
+    - Detect extreme out-of-range agricultural anomalies
     """
+    if not x_device_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Security rule: X-Device-Key header is required for IoT sensor ingestion."
+        )
+
     device = db.query(SensorDevice).filter(SensorDevice.device_identifier == data.sensor_id).first()
     if not device:
-        # Fallback support for un-registered legacy nodes
-        farm_id = 1
-        device_id = None
-    else:
-        farm_id = device.farm_id
-        device_id = device.id
-        if x_device_key:
-            expected_hash = hash_device_key(x_device_key)
-            if device.hashed_api_key != expected_hash:
-                raise HTTPException(status_code=401, detail="Invalid X-Device-Key")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Security rule: Device is not registered. Ingestion rejected."
+        )
 
-    # Anomaly checks
+    # Verify device key hash
+    expected_hash = hash_device_key(x_device_key)
+    if not hmac.compare_digest(device.hashed_api_key, expected_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid device key for this sensor."
+        )
+
+    if not device.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Device is inactive. Ingestion blocked."
+        )
+
+    # Anomaly checks for extreme readings
     is_anomaly = False
     anomaly_reasons = []
 
@@ -405,8 +406,8 @@ def record_sensor_telemetry(
         anomaly_reasons.append("Abnormal soil temperature")
 
     reading = SensorReading(
-        device_id=device_id,
-        farm_id=farm_id,
+        device_id=device.id,
+        farm_id=device.farm_id,
         sensor_id=data.sensor_id,
         moisture=data.moisture,
         temperature=data.temperature,
@@ -414,7 +415,7 @@ def record_sensor_telemetry(
         ph=data.ph,
         is_anomaly=is_anomaly,
         anomaly_reason="; ".join(anomaly_reasons) if is_anomaly else None,
-        recorded_at=datetime.utcnow()
+        recorded_at=datetime.now(timezone.utc)
     )
     db.add(reading)
     db.commit()
@@ -423,6 +424,7 @@ def record_sensor_telemetry(
     return {
         "status": "success",
         "reading_id": reading.id,
+        "device_id": device.id,
         "is_anomaly": is_anomaly,
         "anomaly_reason": reading.anomaly_reason,
         "recorded_at": reading.recorded_at.isoformat()

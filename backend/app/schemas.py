@@ -57,6 +57,9 @@ class ProfileResponse(BaseModel):
     phone: str
     name: Optional[str] = None
     language_preference: str
+    role: str = "farmer"
+    is_verified: bool = False
+    rating: float = 5.0
     created_at: datetime
     updated_at: datetime
 

@@ -1,25 +1,31 @@
 """
 Profile router for AGRI-TECH.
-Allows authenticated users to view and update their profile.
+Security Item 7: Users cannot escalate their role to 'admin' or 'transporter'.
+Only allowed self-transitions: 'farmer' <-> 'buyer'.
+Uses timezone-aware UTC datetime.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User
-from app.schemas import ProfileResponse, ProfileUpdateRequest
+from app.models import User, UserRole
+from app.schemas import ProfileResponse
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
 
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    language_preference: Optional[str] = None
+    role: Optional[str] = None
+
+
 @router.get("", response_model=ProfileResponse)
 def get_profile(current_user: User = Depends(get_current_user)):
-    """
-    Get the authenticated user's profile.
-    Requires a valid JWT in the Authorization header.
-    """
     return current_user
 
 
@@ -30,18 +36,26 @@ def update_profile(
     db: Session = Depends(get_db),
 ):
     """
-    Update the authenticated user's profile (name and/or language preference).
-    Only provided fields are updated; omitted fields remain unchanged.
+    Security Item 7: Users cannot make themselves admin or transporter.
+    Attempts to escalate role raise 403 Forbidden.
     """
-    # Update only the fields that were provided in the request
+    if request.role is not None:
+        requested_role = request.role.lower().strip()
+        # Disallow privilege escalation
+        if requested_role in [UserRole.ADMIN.value, UserRole.TRANSPORTER.value]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Security violation: Users cannot self-assign the '{requested_role}' role."
+            )
+        if requested_role in [UserRole.FARMER.value, UserRole.BUYER.value]:
+            current_user.role = requested_role
+
     if request.name is not None:
-        current_user.name = request.name
+        current_user.name = request.name.strip()
     if request.language_preference is not None:
-        current_user.language_preference = request.language_preference
+        current_user.language_preference = request.language_preference.strip()
 
-    # Touch the updated_at timestamp
-    current_user.updated_at = datetime.utcnow()
-
+    current_user.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(current_user)
 

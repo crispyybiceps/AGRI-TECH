@@ -146,7 +146,7 @@ def get_soilgrids_estimate(lat: float, lng: float, db: Any = None) -> Dict[str, 
     Tier 2: ISRIC SoilGrids v2 REST query with 30-day cache & rate-limit handling.
     Always clearly labeled as ESTIMATE, not a lab test.
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timezone, timedelta
     from app.models import SoilRecord
 
     # Check 30-day cache if db session provided
@@ -154,7 +154,7 @@ def get_soilgrids_estimate(lat: float, lng: float, db: Any = None) -> Dict[str, 
     rounded_lng = round(lng, 2)
 
     if db:
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         cached_record = (
             db.query(SoilRecord)
             .filter(

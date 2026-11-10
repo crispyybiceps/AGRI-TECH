@@ -13,7 +13,7 @@ import time
 import logging
 import urllib.request
 import urllib.error
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from app.models import WeatherCache, Farm
@@ -123,7 +123,7 @@ def get_cached_or_fresh_weather(db: Session, farm_id: Optional[int], lat: float,
     3. Stale cache (any age, labeled 'last updated X hours ago')
     4. Mock forecast ONLY if DEBUG_MOCK=True or as emergency fallback
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     three_hours_ago = now - timedelta(hours=3)
 
     # 1. Check Fresh Cache (< 3 hours)

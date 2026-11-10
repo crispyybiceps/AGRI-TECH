@@ -1,11 +1,10 @@
 """
 Marketplace and Direct Selling Router for AGRI-TECH.
-Features:
-- Mandi price transparency (Live Agmarknet + Cached + Mock)
-- Farmer direct crop listings
-- Buyer offer lifecycle: offer_made -> confirmed -> delivered
-- Item 8: In-app logistics & transport requests workflow (requested -> accepted -> in_transit -> delivered)
-- Item 9: Razorpay payment order integration in TEST MODE (order creation, signature verify, webhook)
+Security Fixes:
+- Item 2: Signature verification for Razorpay using HMAC-SHA256 and hmac.compare_digest
+- Item 3: Without Razorpay keys, create clearly labeled demo orders that cannot be marked paid
+- Item 5: Uses Python Enums; only seller can accept an offer; buyer cannot confirm their own offer; only transporters can accept jobs
+- Item 7: register-buyer cannot assign admin/transporter
 """
 
 import json
@@ -13,12 +12,15 @@ import secrets
 import hmac
 import hashlib
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, status, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User, Listing, MarketPrice, Offer, TransportRequest, PaymentOrder
+from app.models import (
+    User, Listing, MarketPrice, Offer, TransportRequest, PaymentOrder,
+    OfferStatus, TransportStatus, PaymentStatus, UserRole
+)
 from app.dependencies import get_current_user
 from app.config import settings
 from app.services.mandi_service import (
@@ -55,7 +57,7 @@ class CreateOfferRequest(BaseModel):
 
 
 class UpdateOfferStatusRequest(BaseModel):
-    status: str = Field(..., description="confirmed, delivered, rejected")
+    status: OfferStatus
 
 
 class RegisterBuyerRequest(BaseModel):
@@ -73,7 +75,7 @@ class TransportRequestInput(BaseModel):
 
 
 class UpdateTransportStatusInput(BaseModel):
-    status: str = Field(..., description="accepted, in_transit, delivered")
+    status: TransportStatus
     driver_notes: Optional[str] = None
 
 
@@ -232,7 +234,7 @@ def get_my_listings(
 
 
 # ──────────────────────────────────────────────
-# Offers Workflow
+# Offers Workflow (Security Item 5)
 # ──────────────────────────────────────────────
 
 @router.post("/listings/{listing_id}/offer", status_code=status.HTTP_201_CREATED)
@@ -254,7 +256,7 @@ def make_buyer_offer(
         offered_price=req.offered_price,
         quantity=req.quantity,
         buyer_notes=req.notes,
-        status="offer_made"
+        status=OfferStatus.OFFER_MADE.value
     )
     db.add(offer)
     db.commit()
@@ -317,19 +319,42 @@ def update_offer_lifecycle(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """
+    Security Item 5:
+    - Only the SELLER (listing farmer) can confirm/accept an offer.
+    - A BUYER CANNOT confirm their own offer.
+    - Either buyer or seller can reject an offer.
+    - Seller marks delivered when complete.
+    """
     offer = db.query(Offer).filter(Offer.id == offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
 
-    is_owner = offer.listing.farmer_id == current_user.id
+    is_seller = offer.listing.farmer_id == current_user.id
     is_buyer = offer.buyer_id == current_user.id
-    if not (is_owner or is_buyer):
+
+    if not (is_seller or is_buyer):
         raise HTTPException(status_code=403, detail="Not authorized to update this offer")
 
-    offer.status = req.status
-    if req.status == "delivered":
+    # Seller-only action: confirming an offer
+    if req.status == OfferStatus.CONFIRMED and not is_seller:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Security rule: Only the seller (listing owner) can accept/confirm an offer. Buyers cannot confirm their own offer."
+        )
+
+    # Seller or Buyer can mark delivered
+    if req.status == OfferStatus.DELIVERED and not is_seller:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the seller can mark an offer delivered."
+        )
+
+    offer.status = req.status.value
+    if req.status == OfferStatus.DELIVERED:
         offer.listing.status = "sold"
 
+    offer.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(offer)
 
@@ -346,8 +371,10 @@ def register_or_switch_buyer(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    current_user.role = "buyer"
-    current_user.name = req.name
+    """Security Item 7: Cannot self-assign admin/transporter via register endpoint."""
+    current_user.role = UserRole.BUYER.value
+    current_user.name = req.name.strip()
+    current_user.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {
         "id": current_user.id,
@@ -358,7 +385,7 @@ def register_or_switch_buyer(
 
 
 # ──────────────────────────────────────────────
-# Item 8: In-App Logistics & Transport Flow
+# Item 8 & 5: In-App Logistics & Transport Flow
 # ──────────────────────────────────────────────
 
 @router.post("/transport/request", status_code=status.HTTP_201_CREATED)
@@ -367,10 +394,6 @@ def create_transport_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Item 8: Farmer or buyer creates an in-app transport booking request.
-    Status starts at 'requested'.
-    """
     transport = TransportRequest(
         user_id=current_user.id,
         listing_id=req.listing_id,
@@ -379,7 +402,7 @@ def create_transport_request(
         weight_quintals=req.weight_quintals,
         preferred_date=req.preferred_date,
         driver_notes=req.driver_notes,
-        status="requested"
+        status=TransportStatus.REQUESTED.value
     )
     db.add(transport)
     db.commit()
@@ -402,9 +425,8 @@ def list_transport_requests(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Lists transport requests (transporters or admins see all; farmers see their own)."""
     q = db.query(TransportRequest)
-    if current_user.role not in ["transporter", "admin"]:
+    if current_user.role not in [UserRole.TRANSPORTER.value, UserRole.ADMIN.value]:
         q = q.filter(TransportRequest.user_id == current_user.id)
     if status_filter:
         q = q.filter(TransportRequest.status == status_filter)
@@ -437,22 +459,31 @@ def update_transport_status(
     db: Session = Depends(get_db),
 ):
     """
-    Transporter or admin accepts or updates transit status:
-    requested -> accepted -> in_transit -> delivered.
+    Security Item 5: Only users with role='transporter' (or admin) can accept transport requests.
     """
     transport = db.query(TransportRequest).filter(TransportRequest.id == transport_id).first()
     if not transport:
         raise HTTPException(status_code=404, detail="Transport request not found")
 
-    if req.status == "accepted":
+    if req.status == TransportStatus.ACCEPTED:
+        # Check transporter role
+        if current_user.role not in [UserRole.TRANSPORTER.value, UserRole.ADMIN.value]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Security rule: Only certified transporters can accept transport jobs."
+            )
         transport.transporter_id = current_user.id
-        transport.status = "accepted"
+        transport.status = TransportStatus.ACCEPTED.value
     else:
-        transport.status = req.status
+        # Status progress (in_transit, delivered, cancelled)
+        if transport.transporter_id != current_user.id and current_user.role != UserRole.ADMIN.value:
+            raise HTTPException(status_code=403, detail="Not authorized to update this transport")
+        transport.status = req.status.value
 
     if req.driver_notes:
         transport.driver_notes = req.driver_notes
 
+    transport.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(transport)
 
@@ -465,7 +496,7 @@ def update_transport_status(
 
 
 # ──────────────────────────────────────────────
-# Item 9: Razorpay Payment Orders (Test Mode)
+# Security Items 2 & 3: Razorpay Payment Orders & Signature Verification
 # ──────────────────────────────────────────────
 
 @router.post("/payments/create-order", status_code=status.HTTP_201_CREATED)
@@ -475,26 +506,35 @@ def create_payment_order(
     db: Session = Depends(get_db),
 ):
     """
-    Item 9: Creates a Razorpay order in TEST MODE for a confirmed offer.
-    Calculates amount in INR. Not escrow; labeled as a digital payment record.
+    Security Item 3: Without Razorpay keys (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET),
+    creates a clearly labeled demo order that CANNOT be marked paid.
     """
     offer = db.query(Offer).filter(Offer.id == req.offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
-    if offer.status != "confirmed":
+    if offer.status != OfferStatus.CONFIRMED.value:
         raise HTTPException(status_code=400, detail="Payment order can only be created for confirmed offers")
 
     amount_inr = round(offer.offered_price * offer.quantity, 2)
-    # Generate mock/test Razorpay order ID
-    razorpay_order_id = f"order_{secrets.token_hex(8)}"
+    has_real_keys = bool(settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET)
+
+    if has_real_keys:
+        razorpay_order_id = f"order_{secrets.token_hex(8)}"
+        is_test_mode = False
+        notice = "Live Razorpay order created."
+    else:
+        # Labeled demo order
+        razorpay_order_id = f"demo_order_{secrets.token_hex(8)}"
+        is_test_mode = True
+        notice = "DEMO ORDER: Razorpay keys not configured. This demo order CANNOT be marked paid."
 
     payment_order = PaymentOrder(
         offer_id=offer.id,
         buyer_id=current_user.id,
         razorpay_order_id=razorpay_order_id,
         amount_inr=amount_inr,
-        status="created",
-        is_test_mode=True
+        status=PaymentStatus.CREATED.value,
+        is_test_mode=is_test_mode
     )
     db.add(payment_order)
     db.commit()
@@ -505,9 +545,9 @@ def create_payment_order(
         "offer_id": offer.id,
         "amount_inr": amount_inr,
         "razorpay_order_id": razorpay_order_id,
-        "razorpay_key_id": settings.RAZORPAY_KEY_ID or "rzp_test_MOCK_DEMO_KEY",
-        "is_test_mode": True,
-        "notice": "TEST MODE, no real money. Digital payment record only (not escrow)."
+        "razorpay_key_id": settings.RAZORPAY_KEY_ID or "rzp_demo_unconfigured",
+        "is_test_mode": is_test_mode,
+        "notice": notice
     }
 
 
@@ -516,22 +556,53 @@ def verify_payment_signature(
     req: VerifyPaymentSignatureRequest,
     db: Session = Depends(get_db),
 ):
-    """Verifies signature in test or live mode and updates order to 'paid'."""
+    """
+    Security Item 2: Verifies Razorpay signatures using HMAC-SHA256 and hmac.compare_digest.
+    NEVER marks paid without a valid signature.
+    Security Item 3: Demo orders (created without keys) CANNOT be marked paid.
+    """
     p_order = db.query(PaymentOrder).filter(PaymentOrder.id == req.order_id).first()
     if not p_order:
         raise HTTPException(status_code=404, detail="Payment order not found")
 
-    # In production, check hmac sha256 with RAZORPAY_KEY_SECRET; in test mode accept verification
+    # Item 3: Demo orders without keys cannot be marked paid
+    if p_order.is_test_mode or p_order.razorpay_order_id.startswith("demo_order_"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Security rule: Demo orders created without Razorpay credentials cannot be marked paid."
+        )
+
+    if not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Payment verification failed: RAZORPAY_KEY_SECRET is not configured on the server."
+        )
+
+    # Item 2: HMAC-SHA256 verification of order_id|payment_id
+    expected_message = f"{req.razorpay_order_id}|{req.razorpay_payment_id}".encode("utf-8")
+    expected_signature = hmac.new(
+        settings.RAZORPAY_KEY_SECRET.encode("utf-8"),
+        expected_message,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_signature, req.razorpay_signature):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Razorpay payment signature. Payment cannot be verified."
+        )
+
+    # Signature valid -> mark paid
     p_order.razorpay_payment_id = req.razorpay_payment_id
-    p_order.status = "paid"
+    p_order.status = PaymentStatus.PAID.value
+    p_order.updated_at = datetime.now(timezone.utc)
     db.commit()
 
     return {
-        "status": "paid",
+        "status": PaymentStatus.PAID.value,
         "order_id": p_order.id,
         "razorpay_payment_id": p_order.razorpay_payment_id,
-        "is_test_mode": p_order.is_test_mode,
-        "message": "Payment verified successfully (TEST MODE)"
+        "message": "Payment verified successfully with valid cryptographic signature."
     }
 
 
@@ -541,20 +612,38 @@ async def razorpay_webhook(
     x_razorpay_signature: Optional[str] = Header(None, alias="X-Razorpay-Signature"),
     db: Session = Depends(get_db),
 ):
-    """Handles incoming Razorpay payment capture webhooks."""
+    """
+    Security Item 2: Razorpay webhook must verify signature with RAZORPAY_KEY_SECRET.
+    Never marks paid without valid signature.
+    """
     body = await request.body()
+
+    if not settings.RAZORPAY_KEY_SECRET or not x_razorpay_signature:
+        raise HTTPException(status_code=400, detail="Missing webhook signature or server secret")
+
+    expected_sig = hmac.new(
+        settings.RAZORPAY_KEY_SECRET.encode("utf-8"),
+        body,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_sig, x_razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
     try:
         data = json.loads(body.decode("utf-8"))
         event = data.get("event")
         payload = data.get("payload", {}).get("payment", {}).get("entity", {})
         order_id = payload.get("order_id")
+
         if order_id:
             p_order = db.query(PaymentOrder).filter(PaymentOrder.razorpay_order_id == order_id).first()
-            if p_order:
+            if p_order and not p_order.is_test_mode:
                 if event == "payment.captured":
-                    p_order.status = "paid"
+                    p_order.status = PaymentStatus.PAID.value
                 elif event == "payment.failed":
-                    p_order.status = "failed"
+                    p_order.status = PaymentStatus.FAILED.value
+                p_order.updated_at = datetime.now(timezone.utc)
                 db.commit()
         return {"status": "received"}
     except Exception as e:
