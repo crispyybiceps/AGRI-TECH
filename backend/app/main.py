@@ -9,6 +9,7 @@ A mobile-first web API for Indian farmers, providing:
 Run with: uvicorn app.main:app --reload
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
@@ -26,7 +27,11 @@ from app.routers import (
 # ──────────────────────────────────────────────
 # Create all database tables on startup
 # ──────────────────────────────────────────────
-Base.metadata.create_all(bind=engine)
+if os.getenv("TESTING") != "true":
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception:
+        pass
 
 # ──────────────────────────────────────────────
 # Initialize FastAPI application

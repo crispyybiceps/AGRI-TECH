@@ -17,8 +17,9 @@ from app.models import User, OTP, UserRole
 from app.schemas import (
     SendOTPRequest, SendOTPResponse,
     VerifyOTPRequest, VerifyOTPResponse, UserBrief,
+    SignupRequest, LoginRequest, AuthResponse,
 )
-from app.auth import create_access_token
+from app.auth import create_access_token, verify_password, get_password_hash
 from app.config import settings
 from app.services.otp_service import get_otp_provider
 
@@ -35,6 +36,88 @@ def hash_otp_hmac(phone: str, code: str) -> str:
     key = settings.OTP_PEPPER.encode("utf-8")
     message = f"{phone}:{code}".encode("utf-8")
     return hmac.new(key, message, hashlib.sha256).hexdigest()
+
+
+def _normalize_phone(raw: str) -> str:
+    cleaned = raw.strip()
+    if not cleaned.startswith("+"):
+        if len(cleaned) == 10:
+            cleaned = f"+91{cleaned}"
+        elif len(cleaned) == 12 and cleaned.startswith("91"):
+            cleaned = f"+{cleaned}"
+    return cleaned
+
+
+@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+def signup(request: SignupRequest, db: Session = Depends(get_db)):
+    """
+    Register a new user with phone, password, and optional name.
+    Returns access token and user info matching the OTP verify response.
+    """
+    phone = _normalize_phone(request.phone)
+    raw_phone = request.phone.strip()
+
+    # Check for existing user by normalized or raw phone
+    existing_user = db.query(User).filter((User.phone == phone) | (User.phone == raw_phone)).first()
+    if existing_user and existing_user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number already registered. Please login.",
+        )
+
+    pw_hash = get_password_hash(request.password)
+
+    if existing_user:
+        # User was previously seeded or created without password
+        existing_user.password_hash = pw_hash
+        if request.name:
+            existing_user.name = request.name.strip()
+        db.commit()
+        db.refresh(existing_user)
+        user = existing_user
+    else:
+        role = UserRole.ADMIN.value if phone in settings.ADMIN_PHONES else UserRole.FARMER.value
+        user = User(
+            phone=phone,
+            name=request.name.strip() if request.name else None,
+            password_hash=pw_hash,
+            role=role,
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    token = create_access_token(user_id=user.id, phone=user.phone)
+    return AuthResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserBrief(id=user.id, phone=user.phone, name=user.name),
+    )
+
+
+@router.post("/login", response_model=AuthResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    """
+    Authenticate user using phone and password.
+    Returns access token and user info matching the OTP verify response.
+    """
+    phone = _normalize_phone(request.phone)
+    raw_phone = request.phone.strip()
+
+    user = db.query(User).filter((User.phone == phone) | (User.phone == raw_phone)).first()
+    if not user or not user.password_hash or not verify_password(request.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid phone number or password",
+        )
+
+    token = create_access_token(user_id=user.id, phone=user.phone)
+    return AuthResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserBrief(id=user.id, phone=user.phone, name=user.name),
+    )
 
 
 @router.post("/send-otp", response_model=SendOTPResponse)

@@ -28,18 +28,6 @@ from app.config import settings
 from app.routers.auth_router import hash_otp_hmac
 
 
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
-@pytest.fixture
-def db():
-    session = SessionLocal()
-    yield session
-    session.close()
-
-
 def create_test_user(db, phone: str, role: str = "farmer"):
     user = db.query(User).filter(User.phone == phone).first()
     if not user:
@@ -301,3 +289,59 @@ def test_users_cannot_escalate_roles(client, db):
     res_buyer = client.put("/profile", headers={"Authorization": f"Bearer {token}"}, json={"role": "buyer"})
     assert res_buyer.status_code == 200
     assert res_buyer.json()["role"] == "buyer"
+
+
+# ──────────────────────────────────────────────
+# 8. Password-Based Signup and Login
+# ──────────────────────────────────────────────
+def test_password_signup_and_login_flow(client):
+    # 1. Signup a new user
+    signup_res = client.post(
+        "/auth/signup",
+        json={"phone": "9876500001", "password": "securepassword123", "name": "Professor Demo"}
+    )
+    assert signup_res.status_code == 201
+    signup_data = signup_res.json()
+    assert "access_token" in signup_data
+    assert signup_data["token_type"] == "bearer"
+    assert signup_data["user"]["phone"] == "+919876500001"
+    assert signup_data["user"]["name"] == "Professor Demo"
+
+    token = signup_data["access_token"]
+
+    # Verify token can access protected endpoints like /profile
+    prof_res = client.get("/profile", headers={"Authorization": f"Bearer {token}"})
+    assert prof_res.status_code == 200
+    assert prof_res.json()["phone"] == "+919876500001"
+
+    # 2. Login with valid credentials
+    login_res = client.post(
+        "/auth/login",
+        json={"phone": "9876500001", "password": "securepassword123"}
+    )
+    assert login_res.status_code == 200
+    assert "access_token" in login_res.json()
+
+    # 3. Login with wrong password -> 401
+    bad_login = client.post(
+        "/auth/login",
+        json={"phone": "9876500001", "password": "wrongpassword"}
+    )
+    assert bad_login.status_code == 401
+    assert "Invalid phone number or password" in bad_login.json()["detail"]
+
+    # 4. Login with non-existent phone -> 401
+    unreg_login = client.post(
+        "/auth/login",
+        json={"phone": "9876500999", "password": "securepassword123"}
+    )
+    assert unreg_login.status_code == 401
+
+    # 5. Duplicate signup on already registered phone -> 400
+    dup_signup = client.post(
+        "/auth/signup",
+        json={"phone": "9876500001", "password": "anotherpassword"}
+    )
+    assert dup_signup.status_code == 400
+    assert "already registered" in dup_signup.json()["detail"]
+

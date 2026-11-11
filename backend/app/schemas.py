@@ -47,6 +47,26 @@ class VerifyOTPResponse(BaseModel):
     user: UserBrief
 
 
+class SignupRequest(BaseModel):
+    """Request body for user registration."""
+    phone: str = Field(..., min_length=10, max_length=15, description="Mobile number")
+    password: str = Field(..., min_length=4, max_length=100, description="User password")
+    name: Optional[str] = Field(None, max_length=200, description="Full name")
+
+
+class LoginRequest(BaseModel):
+    """Request body for user login."""
+    phone: str = Field(..., min_length=10, max_length=15, description="Mobile number")
+    password: str = Field(..., min_length=1, max_length=100, description="User password")
+
+
+class AuthResponse(BaseModel):
+    """Unified authentication response containing JWT and user profile brief."""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserBrief
+
+
 # ──────────────────────────────────────────────
 # Profile Schemas
 # ──────────────────────────────────────────────

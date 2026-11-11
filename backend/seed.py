@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.services.mandi_service import DEFAULT_MAHARASHTRA_MANDIS
 from app.services.soil_service import interpret_soil_health_card, interpret_visual_observation
+from app.auth import get_password_hash
 
 
 def seed_database():
@@ -44,10 +45,12 @@ def seed_database():
         db.query(MarketPrice).delete()
         db.commit()
 
-        # 2. Seed Users
+        # 2. Seed Users (default demo password: password123)
+        demo_pwd_hash = get_password_hash("password123")
         farmer = User(
             phone="+919876543210",
             name="Ramesh Patil (रमेश पाटील)",
+            password_hash=demo_pwd_hash,
             language_preference="mr",
             role="farmer",
             is_verified=True,
@@ -56,6 +59,7 @@ def seed_database():
         buyer = User(
             phone="+919888877777",
             name="Kailash Agro Traders (कैलास ॲग्रो ट्रेडर्स)",
+            password_hash=demo_pwd_hash,
             language_preference="mr",
             role="buyer",
             is_verified=True,
@@ -64,6 +68,7 @@ def seed_database():
         admin = User(
             phone="+919999900000",
             name="KVK Admin Officer",
+            password_hash=demo_pwd_hash,
             language_preference="en",
             role="admin",
             is_verified=True,

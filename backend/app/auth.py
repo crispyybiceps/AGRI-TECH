@@ -1,12 +1,31 @@
 """
-JWT authentication utilities for AGRI-TECH.
-Uses JWT_SECRET (min 64 chars) and timezone-aware UTC datetime.
+JWT and Password authentication utilities for AGRI-TECH.
+Uses passlib (pbkdf2_sha256 & bcrypt), JWT_SECRET (min 64 chars), and timezone-aware UTC datetime.
 """
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
+from passlib.context import CryptContext
 from app.config import settings
+
+# Password hashing context supporting pbkdf2_sha256 (standard) and bcrypt
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
+
+
+def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
+    """Verifies a plain password against the stored hash."""
+    if not hashed_password or not plain_password:
+        return False
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
+
+
+def get_password_hash(password: str) -> str:
+    """Generates a secure password hash."""
+    return pwd_context.hash(password)
 
 
 def create_access_token(user_id: int, phone: str) -> str:

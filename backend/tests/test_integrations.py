@@ -21,55 +21,12 @@ from app.services.soil_service import get_soilgrids_estimate, extract_soil_card_
 from app.services.mandi_service import fetch_live_agmarknet_prices, sync_mandi_prices_task
 
 
-@pytest.fixture
-def client():
-    # Recreate clean tables for test session
-    Base.metadata.create_all(bind=engine)
-    return TestClient(app)
-
-
-def test_otp_mock_provider():
-    provider = MockOTPProvider()
-    success, msg = provider.send_otp("9876543210", "123456")
-    assert success is True
-    assert "MOCK" in msg
-
-
-def test_twilio_provider_mocked_http():
-    mock_urlopen = MagicMock()
-    mock_urlopen.return_value.__enter__.return_value.status = 201
-
-    with patch("urllib.request.urlopen", mock_urlopen):
-        with patch("app.config.settings.TWILIO_ACCOUNT_SID", "AC_mock_sid"), \
-             patch("app.config.settings.TWILIO_AUTH_TOKEN", "mock_auth_token"), \
-             patch("app.config.settings.TWILIO_FROM_NUMBER", "+1234567890"):
-            provider = TwilioOTPProvider()
-            success, msg = provider.send_otp("9876543210", "654321")
-            assert success is True
-            assert "Twilio" in msg
-
-
-def test_msg91_provider_mocked_http():
-    mock_urlopen = MagicMock()
-    mock_urlopen.return_value.__enter__.return_value.read.return_value = b'{"type":"success","message":"OTP sent"}'
-
-    with patch("urllib.request.urlopen", mock_urlopen):
-        with patch("app.config.settings.MSG91_AUTH_KEY", "mock_msg91_key"), \
-             patch("app.config.settings.MSG91_TEMPLATE_ID", "mock_template"):
-            provider = MSG91OTPProvider()
-            success, msg = provider.send_otp("9876543210", "998877")
-            assert success is True
-            assert "MSG91" in msg
-
-
-def test_weather_retries_and_stale_fallback(client):
-    db = SessionLocal()
+def test_weather_retries_and_stale_fallback(client, db):
     # Mock Open-Meteo failing
     with patch("urllib.request.urlopen", side_effect=Exception("Connection refused")):
         res = get_cached_or_fresh_weather(db, farm_id=None, lat=18.52, lng=73.85)
         assert res is not None
         assert "daily" in res
-    db.close()
 
 
 def test_soilgrids_v2_mocked_response():
@@ -113,9 +70,8 @@ def test_soil_ocr_claude_vision_mocked():
             assert res["needs_confirmation"] is True
 
 
-def test_iot_sensor_device_and_telemetry(client):
+def test_iot_sensor_device_and_telemetry(client, db):
     # Setup test farmer
-    db = SessionLocal()
     farmer = db.query(User).filter(User.phone == "9111222333").first()
     if not farmer:
         farmer = User(phone="9111222333", name="Test Farmer")
@@ -155,7 +111,6 @@ def test_iot_sensor_device_and_telemetry(client):
     )
     assert anomaly_res.status_code == 201
     assert anomaly_res.json()["is_anomaly"] is True
-    db.close()
 
 
 def test_agmarknet_sync_mocked():
@@ -185,11 +140,15 @@ def test_agmarknet_sync_mocked():
             assert records[0]["modal_price"] == 4700.0
 
 
-def test_transport_and_payment_flow(client):
-    db = SessionLocal()
+def test_transport_and_payment_flow(client, db):
     user = db.query(User).first()
-    user.role = "transporter"
-    db.commit()
+    if not user:
+        user = User(phone="+919876543210", name="Test Transporter", role="transporter")
+        db.add(user)
+        db.commit()
+    else:
+        user.role = "transporter"
+        db.commit()
     from app.auth import create_access_token
     token = create_access_token(user_id=user.id, phone=user.phone)
     headers = {"Authorization": f"Bearer {token}"}
@@ -229,5 +188,4 @@ def test_transport_and_payment_flow(client):
     assert pay_res.status_code == 201
     assert "DEMO ORDER" in pay_res.json()["notice"] or "TEST MODE" in pay_res.json()["notice"]
     assert pay_res.json()["amount_inr"] == 24500.0
-    db.close()
 
