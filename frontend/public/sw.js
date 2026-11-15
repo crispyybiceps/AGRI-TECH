@@ -27,8 +27,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass through non-GET and API requests directly to network
-  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
+  const url = new URL(event.request.url);
+
+  // Never cache: non-GET, different origin (API calls), or browser-extension requests
+  if (
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin
+  ) {
     return;
   }
 
